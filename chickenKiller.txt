@@ -1,0 +1,106 @@
+package chickenKiller;
+
+import org.dreambot.api.methods.Calculations;
+import org.dreambot.api.methods.skills.Skill;
+import org.dreambot.api.methods.tabs.Tab;
+import org.dreambot.api.script.AbstractScript;
+import org.dreambot.api.script.Category;
+import org.dreambot.api.script.ScriptManifest;
+import org.dreambot.api.utilities.Timer;
+import org.dreambot.api.utilities.impl.Condition;
+import org.dreambot.api.wrappers.interactive.NPC;
+import org.dreambot.api.wrappers.items.GroundItem;
+
+import java.awt.*;
+
+	@ScriptManifest(name = "chickenKiller", author = "2NoObZ", description = "Basic Chicken Killer", version = 2.0, category = Category.COMBAT)
+	public class ChickenKiller extends AbstractScript {
+
+		private Timer t = new Timer();
+		public int feathers;
+
+		@Override
+		public void onStart() {
+			log("Welcome to a basic chicken killer");
+			log("We will kill chickens and pick up feathers");
+
+		}
+
+		@SuppressWarnings("unused")
+		private State state;
+		
+		private enum State{
+			Kill, Wait, Anti;
+		}
+		
+		private State getState(){
+		if(getLocalPlayer().canAttack() && !getLocalPlayer().isInCombat() && !getLocalPlayer().isMoving()){
+			return State.Kill;
+		}
+		if(Calculations.random(234) == 1 && getLocalPlayer().isInCombat()) {
+			return State.Anti;
+		}
+		else {
+			return State.Wait;
+		}
+		
+		}
+		
+		@Override
+		public int onLoop() {
+			switch (getState()) {
+			case Kill:
+				NPC chicken = getNpcs().closest("Chicken"); //Getting Chicken
+				GroundItem feather = getGroundItems().closest("Feather"); //Getting Feather
+				if(chicken != null && !chicken.isInCombat() && chicken.canAttack()) {
+					chicken.interact("Attack");
+					getCamera().rotateToEntity(chicken);
+					
+					sleepUntil(new Condition(){
+		    			@Override
+		    			public boolean verify(){
+		    			return chicken.getHealthPercent() <= 0;
+		    			}
+		    			},Calculations.random(512));
+				}
+				if(feather.exists() && !getLocalPlayer().isMoving() && !getLocalPlayer().isInCombat() && feather.distance(getLocalPlayer()) < 3) {
+					feather.interact("Take");
+					feathers = getInventory().count("Feather");
+				}
+				break;
+			case Anti:
+				int Anti1 = Calculations.random(3);
+				switch(Anti1) {
+				case 1:
+					getTabs().open(Tab.SKILLS);
+					getSkills().hoverSkill(Skill.ATTACK);
+					sleep(Calculations.random(5000));
+					getTabs().open(Tab.INVENTORY);
+				break;
+				case 2:
+					getMouse().moveMouseOutsideScreen();
+				break;
+				case 3:
+					getTabs().open(Tab.COMBAT);
+					sleep(Calculations.random(5000));
+					getTabs().open(Tab.INVENTORY);
+				}
+			case Wait:
+				sleep(Calculations.random(1240,3333));
+				break;
+			}
+			return Calculations.random(347);
+		}
+			
+		@Override
+		public void onExit() {
+
+		}
+
+		public void onPaint(Graphics2D g) {
+			g.setColor(Color.WHITE);
+			g.setFont(new Font("Arial", 1, 11));
+			g.drawString("Time Running: " + t.formatTime(), 25, 50);
+			g.drawString("Feathers Picked up: " +feathers, 25, 60);
+		}
+	}

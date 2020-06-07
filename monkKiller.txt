@@ -1,0 +1,227 @@
+package guardKiller;
+
+import org.dreambot.api.methods.Calculations;
+import org.dreambot.api.methods.tabs.Tab;
+import org.dreambot.api.script.AbstractScript;
+import org.dreambot.api.script.Category;
+import org.dreambot.api.script.ScriptManifest;
+import org.dreambot.api.utilities.Timer;
+import org.dreambot.api.utilities.impl.Condition;
+import org.dreambot.api.wrappers.interactive.NPC;
+import org.dreambot.api.wrappers.items.GroundItem;
+import org.dreambot.api.wrappers.items.Item;
+import org.dreambot.api.methods.map.Area;
+import org.dreambot.api.methods.map.Tile;
+import org.dreambot.api.methods.skills.Skill;
+import org.dreambot.api.wrappers.interactive.GameObject;
+
+
+import java.awt.*;
+
+@ScriptManifest(name = "GuArD KiLlEr", author = "2NoObZ", description = "Kills guards and loots all stackables", version = 1.0, category = Category.COMBAT)
+public class GuardKiller extends AbstractScript {
+		//TODO add second guard killing area (one by gate)
+		// TODO add random choice to which guard area to goto after banking.
+		// TODO if no guard on screen world hop
+		// TODO if guard hpBar showing world hop
+		// TODO modify salmon food check check if amount == 0 and hp < *random "low" percent
+	private Timer t = new Timer();
+	public int inventoryCoins;
+	public boolean banking = false;
+	public boolean fighting = false;
+	Area killArea = new Area (2962, 3388, 2969, 3372); // TODO change to guardKill area??
+	
+	public void attackSequence() {
+		NPC guard = getNpcs().closest("Guard");
+		if (guard != null && !guard.isInCombat() && guard.canAttack() && !getLocalPlayer().isInCombat() && killArea.contains(guard)) {
+			
+			guard.interact("Attack");
+			fighting = true;
+			if(!guard.isOnScreen()) {
+				getCamera().rotateToEntity(guard);
+			}
+			sleep(250);
+            sleepUntil(()-> !guard.isInCombat(), 60000);
+            sleep(Calculations.random(550, 2500));
+			fighting = false;
+		}
+
+	}
+	
+	public void toggleRun() {
+		// sleep duration
+		
+		int runEnergy = getWalking().getRunEnergy();
+		if(runEnergy == 100) {
+			log("toggleRun() FIRE");
+			if(!getWalking().isRunEnabled()) {
+				sleep(Calculations.random(5000,9500));
+				getWalking().toggleRun();
+			}
+		}
+	}
+	
+	public void loot() {
+		// add in loot item names here in this list
+		String[] myList = {
+	       "Coins", "Iron bolts",
+	       "Steel arrow", "Bronze arrow",
+	       "Air rune", "Earth rune",
+	       "Fire rune", "Blood rune",
+	       "Nature rune", "Chaos rune",
+	       "Clue scroll (medium)"
+		};
+		//looting = true;
+		for(int i=0; i< myList.length; i++) {
+			GroundItem item = getGroundItems().closest(myList[i]);
+			if (item != null) {
+				if (item.distance(getLocalPlayer()) < 3) {
+					if (item.exists()) {
+						if(!item.isOnScreen()) {
+							getCamera().rotateToEntity(item);
+						}
+						log("loot() FIRE");
+						item.interact("Take");
+						sleep(250);
+		                sleepUntil(()-> !getLocalPlayer().isMoving(), 60000);
+		                sleep(Calculations.random(550, 2500));
+						break;
+					}
+				}
+			}
+		}
+		inventoryCoins = getInventory().count("Coins");
+	}
+
+	public void eatFood() {
+		//int num1 = Calculations.random(10, 30);
+		int num2 = Calculations.random(35, 80);
+		//int randomHpPercent = Calculations.random(num1, num2);
+		if (!getTabs().isOpen(Tab.INVENTORY)) {
+			getTabs().open(Tab.INVENTORY);
+		} else {
+			Item food = getInventory().get(item -> item != null && item.hasAction("Eat"));
+			if (food != null && getLocalPlayer().getHealthPercent() < num2) {
+				food.interact("Eat");
+				sleep(Calculations.random(250,1000));
+			}
+		}
+	}
+	
+	public void bankItems() {
+		log("bankItems() FIRE");
+		if (!getBank().isOpen()) {
+			banking = true;
+            getBank().open(getBank().getClosestBankLocation());
+        } 
+        else {
+            getBank().depositAllItems();
+            getBank().withdraw("Salmon", 18);
+            getBank().close();
+            banking = false;
+	        }
+		
+    }
+	
+	@Override
+	public void onStart() {
+		log("Welcome to our guard killer");
+		log("We will kill guards! AN DEN pick up stackables!!!");
+
+	}
+
+	@SuppressWarnings("unused")
+	private State state;
+
+	private enum State {
+//		
+		Kill, Walk, Bank, WorldHop, Wait, Anti;
+	}
+	private State getState() {
+		
+		if(getPlayers().closest(p -> p != null && !p.equals(getLocalPlayer()) && p.distance() < 5 && p.isHealthBarVisible()) != null){
+			return State.WorldHop;
+		}
+		else if (getLocalPlayer().canAttack() && !getLocalPlayer().isInCombat() && !getLocalPlayer().isMoving() && killArea.contains(getLocalPlayer()) && getLocalPlayer().getInteractingCharacter() == null) {
+        	return State.Kill;
+		}
+		//if(scriptStep == 1) {
+//		if(!getLocalPlayer().isInCombat() && !getLocalPlayer().isMoving() && killArea.contains(getLocalPlayer())) {
+//			return State.Loot;
+//		}
+		else if(!killArea.contains(getLocalPlayer()) && !getLocalPlayer().isInCombat() && banking == false && !getLocalPlayer().isMoving()) {
+			return State.Walk;
+		}
+		else if(getInventory().count("Salmon") < 1 && getLocalPlayer().getHealthPercent() < 60) {
+			return State.Bank;
+		}
+		else if (Calculations.random(240) > 237 && getLocalPlayer().isInCombat() && getLocalPlayer().getInteractingCharacter() != null) {
+			return State.Anti;
+		} else {
+			return State.Wait;
+		}
+	}
+	@Override
+	public int onLoop() {
+		switch (getState()) {
+		case Kill:
+			eatFood();
+			toggleRun();
+			if(!getLocalPlayer().isInCombat() && !getLocalPlayer().isMoving() && killArea.contains(getLocalPlayer()) && getLocalPlayer().getInteractingCharacter() == null && fighting == false) {
+				loot();
+			}
+			attackSequence();
+			
+			break;
+//		case Loot:
+//			loot();
+//			break;
+		case Walk:
+			getWalking().walk(killArea.getRandomTile());
+			break;
+		case Bank:
+			bankItems();
+			break;
+		case WorldHop:
+			sleep(250);
+			getWorldHopper().hopWorld(getWorlds().getRandomWorld(w -> w != null && !w.isPVP() && !w.isHighRisk()));
+			break;
+		case Anti:
+			int Anti1 = Calculations.random(3);
+			switch (Anti1) {
+			case 1:
+				getTabs().openWithMouse(Tab.SKILLS);
+				getSkills().hoverSkill(Skill.STRENGTH);
+				sleep(Calculations.random(5000));
+				getTabs().openWithMouse(Tab.INVENTORY);
+				break;
+			case 2:
+				getMouse().moveMouseOutsideScreen();
+				break;
+			case 3:
+				sleep(Calculations.random(1550));
+//				getTabs().openWithMouse(Tab.COMBAT);
+//				sleep(Calculations.random(1000));
+//				getTabs().openWithMouse(Tab.INVENTORY);
+				break;
+			}
+		case Wait:
+			sleep(Calculations.random(1240, 3333));
+			break;
+		}
+		return Calculations.random(347);
+	}
+
+	@Override
+	public void onExit() {
+
+	}
+
+	/// draws to client screen *important
+//	public void onPaint(Graphics2D g) {
+//		g.setColor(Color.WHITE);
+//		g.setFont(new Font("Arial", 1, 11));
+//		g.drawString("Time Running: " + t.formatTime(), 25, 50);
+//		g.drawString("Coins Picked up: " + inventoryCoins, 25, 60);
+//	}
+}
