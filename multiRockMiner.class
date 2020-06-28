@@ -1,0 +1,274 @@
+package newbzMultiRockMiner;
+
+import java.awt.Graphics2D;
+import org.dreambot.api.methods.Calculations;
+import org.dreambot.api.methods.map.Area;
+import org.dreambot.api.methods.map.Tile;
+import org.dreambot.api.methods.skills.Skill;
+import org.dreambot.api.methods.tabs.Tab;
+import org.dreambot.api.randoms.RandomEvent;
+import org.dreambot.api.script.AbstractScript;
+import org.dreambot.api.script.Category;
+import org.dreambot.api.script.ScriptManifest;
+import org.dreambot.api.wrappers.interactive.Entity;
+import org.dreambot.api.wrappers.interactive.GameObject;
+import org.dreambot.api.wrappers.interactive.NPC;
+import org.dreambot.api.wrappers.items.Item;
+
+@ScriptManifest(author = "2NewbZ", name = "MuLtIRoCkMiNeR", category = Category.MINING, version = 1.0D)
+public class NewbzMultiRockMiner extends AbstractScript {
+  private long startTime;
+  
+  long runTime, runTimeSeconds, runTimeMinutes, breakTime;
+  long randomSeconds, randomMinutesForLogout, randomMinutesLow, randomMinutesLow, randomMinutesMid, randomMinutesLong;
+  
+  private int oreMined;
+  
+  int randomBankNum, tabsNum, latency, patience, reaction, scale, spamShape, interactiveShape, runningShape, walkingShape, playerMiningLevel, gate;
+  int goldRockId2, goldRockId1, rockId, ironRockId1, ironRockId2, clayRockId;
+  
+  Area bankArea1, bankArea2, entireMiningArea, goldMiningArea, ironMiningArea, currentBankArea;
+  
+  Tile goldRockTile1, goldRockTile2, ironRockTile1, ironRockTile2;
+  
+  String ironOreName, goldOreName, ironMessage, goldMessage;
+  
+  public NewbzMultiRockMiner() {
+    this.bankArea1 = new Area(3015, 3355, 3014, 3357);
+    this.bankArea2 = new Area(3013, 3355, 3012, 3357);
+    this.bankArea3 = new Area(3012, 3355, 3010, 3357);
+    this.entireMiningArea = new Area(2973, 3236, 2984, 3231);
+    this.goldMiningArea = new Area(2978, 3233, 2976, 3234);
+    this.ironMiningArea = new Area(2981, 3235, 2983, 3232);
+    this.gate = 1558;
+    this.ironRockId1 = 11365;
+    this.ironRockId2 = 11364;
+    this.goldRockId1 = 11370;
+    this.goldRockId2 = 11371;
+    this.goldRockTile1 = new Tile(3177, 3366);
+    this.goldRockTile2 = new Tile(31776, 3365);
+    this.ironRockTile1 = new Tile(3181, 3373);
+    this.ironRockTile2 = new Tile(3181, 3373);
+    this.ironOreName = "Iron ore";
+    this.goldOreName = "Gold ore";
+    this.ironMessage = "You manage to mine some iron";
+    this.goldMessage = "You manage to mine some gold";
+  }
+  
+  public enum actionTypes {
+    walking, interactive, spam, afk, skill;
+  }
+  
+  public void onStart() {
+    this.reaction = Calculations.random(250, 750);
+    this.patience = Calculations.random(750, 1250);
+    this.walkingShape = Calculations.random(2, 5);
+    this.runningShape = Calculations.random(2, 4);
+    this.interactiveShape = Calculations.random(2, 4);
+    this.spamShape = 1;
+    this.scale = Calculations.random(350, 650);
+    this.latency = Calculations.random(225, 275);
+    this.startTime = System.currentTimeMillis();
+    this.randomSeconds = Calculations.random(8959, 13620);
+    this.randomMinutesForLogout = this.randomSeconds / 60;
+    this.randomMinutesLow = Calculations.random(13, 31);
+    this.randomMinutesMid = Calculations.random(33, 79);
+    this.randomMinutesLong = Calculations.random(83, 137);
+    this.currentBankArea = this.bankArea2;
+    getSkillTracker().start();
+  }
+  
+  public final String formatTime(long ms) {
+    long s = ms / 1000L, m = s / 60L, h = m / 60L;
+    s %= 60L;
+    m %= 60L;
+    h %= 24L;
+    return String.format("%02d:%02d:%02d", new Object[] { Long.valueOf(h), Long.valueOf(m), Long.valueOf(s) });
+  }
+  
+  public int onLoop() {
+    this.tabsNum = Calculations.random(1, 7);
+    this.randomBankNum = Calculations.random(1, 4);
+    this.runTime = System.currentTimeMillis() - this.startTime;
+    this.runTimeSeconds = this.runTime / 1000L;
+    this.runTimeMinutes = this.runTimeSeconds / 60L;
+    this.playerMiningLevel = getSkills().getRealLevel(Skill.MINING);
+    log("Logout in: " + String.valueOf(this.randomMinutesForLogout - this.runTimeMinutes) + " Minutes");
+    if (getTabs().getOpen() != Tab.INVENTORY && this.tabsNum == 2)
+      getTabs().openWithMouse(Tab.INVENTORY); 
+    if (this.runTimeMinutes > this.randomMinutesForLogout)
+      antiban(actionTypes.afk); 
+    if (!getInventory().isFull()) {
+      if (!this.entireMiningArea.contains((Entity)getLocalPlayer()) && !this.goldMiningArea.contains((Entity)getLocalPlayer()) && 
+        !this.ironMiningArea.contains((Entity)getLocalPlayer()))
+        goWalkTo(this.entireMiningArea); 
+      GameObject rock1 = (GameObject)getGameObjects().closest(n -> 
+          ((n.getID() == this.goldRockId1 || n.getID() == this.goldRockId2) && n.distance((Entity)getLocalPlayer()) < 8.0D));
+      GameObject rock2 = (GameObject)getGameObjects().closest(n -> ((n.getID() == this.ironRockId1 || n.getID() == this.ironRockId2) && n.distance((Entity)getLocalPlayer()) < 8.0D && this.ironMiningArea.contains((Entity)n)));
+      miningSequence(this.playerMiningLevel, rock1, rock2);
+    } 
+    if (getInventory().isFull()) {
+      switch (this.randomBankNum) {
+        case 1:
+          this.currentBankArea = this.bankArea1;
+          break;
+        case 2:
+          this.currentBankArea = this.bankArea2;
+          break;
+        case 3:
+          this.currentBankArea = this.bankArea3;
+          break;
+        default:
+          this.currentBankArea = this.bankArea2;
+          break;
+      } 
+      if (this.currentBankArea.contains((Entity)getLocalPlayer())) {
+        randomBreakCheck(this.runTimeMinutes);
+        bank();
+      } else if (!this.currentBankArea.contains((Entity)getLocalPlayer())) {
+        goWalkTo(this.currentBankArea);
+      } 
+    } 
+    return 600;
+  }
+  
+  public void onExit() {
+    log("Thankyou For Using newbZMiner");
+  }
+  
+  public void onPaint(Graphics2D g) {}
+  
+  private void mineRock(GameObject rock) {
+    if (!rock.isOnScreen())
+      getCamera().rotateToEntity((Entity)rock); 
+    rock.interact("Mine");
+    sleepUntil(() -> (isMined(paramGameObject) && paramGameObject == null), ((int)Calculations.nextGammaRandom(this.interactiveShape, this.scale) + this.reaction + 2500));
+    sleep(this.latency);
+  }
+  
+  private void miningSequence(int miningLevel, GameObject rock1, GameObject rock2) {
+    if (miningLevel >= 40) {
+      if (rock1 == null || isMined(rock1)) {
+        mineRock(rock2);
+      } else if (rock1 != null || !isMined(rock1)) {
+        if (!rock1.isOnScreen())
+          getCamera().rotateToEntity((Entity)rock1); 
+        if (Calculations.random(1, 16) > 14) {
+          if (!getLocalPlayer().isAnimating())
+            mineRock(rock1); 
+        } else {
+          mineRock(rock1);
+        } 
+      } 
+    } else if (miningLevel >= 15 && miningLevel < 40 && 
+      rock2 != null && !isMined(rock2)) {
+      mineRock(rock2);
+    } 
+  }
+  
+  private void bank() {
+    NPC banker = (NPC)getNpcs().closest(npc -> (npc != null && npc.hasAction(new String[] { "Bank" })));
+    if (banker != null && banker.interact("Bank"))
+      if (sleepUntil(() -> getBank().isOpen(), Calculations.random(7500, 9000))) {
+        sleep(this.latency * 3 / 2);
+        if (getBank().depositAllExcept(item -> (item != null && item.getName().contains("pickaxe")))) {
+          sleep(this.latency * 2 / 3);
+          antiban(actionTypes.interactive);
+          if (sleepUntil(() -> !getInventory().isFull(), Calculations.random(6500, 8000)))
+            sleep(this.latency + Calculations.random(500, 1250)); 
+          antiban(actionTypes.interactive);
+        } 
+      }  
+  }
+  
+  public void antiban(actionTypes action) {
+    if (action == actionTypes.walking) {
+      if (getWalking().isRunEnabled()) {
+        int time = (int)Calculations.nextGammaRandom(this.runningShape, this.scale) + this.patience;
+        sleep(this.latency + Calculations.random(50, 150));
+        sleepUntil(() -> !getLocalPlayer().isMoving(), time);
+      } else {
+        int time = (int)Calculations.nextGammaRandom(this.walkingShape, this.scale) + this.patience * 2;
+        sleep(this.latency);
+        sleepUntil(() -> !getLocalPlayer().isMoving(), time);
+      } 
+    } else if (action == actionTypes.interactive) {
+      sleep(this.latency);
+      int time = (int)Calculations.nextGammaRandom(this.interactiveShape, this.scale) + this.reaction;
+      sleep(time);
+    } else if (action == actionTypes.spam) {
+      int time = (int)Calculations.nextGammaRandom(this.spamShape, this.scale) + this.reaction;
+      sleep(time);
+    } else if (action != actionTypes.skill) {
+      if (action == actionTypes.afk) {
+        sleep(Calculations.random(11000, 17000));
+        if (getClient().isLoggedIn()) {
+          getRandomManager().disableSolver(RandomEvent.LOGIN);
+          getRandomManager().disableSolver(RandomEvent.WELCOME_SCREEN);
+          getTabs().logout();
+        } 
+      } 
+    } 
+  }
+  
+  public void goWalkTo(Area area) {
+    if (!area.contains((Entity)getLocalPlayer())) {
+      toggleRun(getLocalPlayer().isInCombat());
+      if (getLocalPlayer().isInCombat()) {
+        sleep(this.latency + Calculations.random(50, 150));
+        getWalking().walk(area.getRandomTile());
+      } 
+      sleep(this.latency + Calculations.random(50, 150));
+      getWalking().walk(area.getRandomTile());
+      antiban(actionTypes.walking);
+    } 
+  }
+  
+  public void toggleRun(boolean inCombat) {
+    if (getWalking().getRunEnergy() > Calculations.random(20, 42) || inCombat) {
+      log("toggleRun() FIRE");
+      if (!getWalking().isRunEnabled()) {
+        sleep(this.latency);
+        getWalking().toggleRun();
+        sleep(this.latency);
+      } 
+    } 
+  }
+  
+  public boolean isMined(GameObject rock) {
+    return !(rock != null && rock.getModelColors() != null);
+  }
+  
+  public void randomBreakCheck(long minutes) {
+    int counterLow = 0;
+    int counterMid = 0;
+    int counterLong = 0;
+    int limit = 3;
+    if (minutes <= 30L && minutes > 13L) {
+      if (minutes > this.randomMinutesLow && this.runTimeMinutes - this.breakTime > Calculations.random(7, 13) && 
+        counterLow <= limit) {
+        counterLow++;
+        log("RandomBreakCheck() FIRE==>");
+        sleep(Calculations.random(21777, 189000));
+        this.breakTime = System.currentTimeMillis() / 1000L / 60L;
+      } 
+    } else if (minutes <= 78L && minutes > 33L) {
+      if (minutes > this.randomMinutesLow && this.runTimeMinutes - this.breakTime > Calculations.random(7, 13) && 
+        counterMid <= limit) {
+        counterMid++;
+        log("RandomBreakCheck() FIRE==>");
+        sleep(Calculations.random(21777, 189000));
+        this.breakTime = System.currentTimeMillis() / 1000L / 60L;
+      } 
+    } else if (minutes <= 150L && minutes > 83L && 
+      minutes > this.randomMinutesLow && this.runTimeMinutes - this.breakTime > Calculations.random(7, 13) && 
+      counterLong <= limit) {
+      counterLong++;
+      if (limit == 3)
+        limit++; 
+      log("RandomBreakCheck() FIRE==>");
+      sleep(Calculations.random(21777, 189000));
+      this.breakTime = System.currentTimeMillis() / 1000L / 60L;
+    } 
+  }
+}
