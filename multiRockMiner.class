@@ -19,19 +19,47 @@ import org.dreambot.api.wrappers.items.Item;
 public class NewbzMultiRockMiner extends AbstractScript {
   private long startTime;
   
-  long runTime, runTimeSeconds, runTimeMinutes, breakTime;
-  long randomSeconds, randomMinutesForLogout, randomMinutesLow, randomMinutesLow, randomMinutesMid, randomMinutesLong;
+  long runTime, runTimeSeconds, runTimeMinutes;
+  long breakTime;
+  long randomSeconds;
+  long randomMinutesForLogout;
+  long randomMinutesLow;
+  long randomMinutesLow;
+  long randomMinutesMid;
+  long randomMinutesLong;
   
   private int oreMined;
+  int randomBankNum;
+  int tabsNum;
+  int latency;
+  int patience;
+  int reaction;
+  int scale;
+  int spamShape;
+  int interactiveShape;
+  int runningShape;
+  int walkingShape;
+  int playerMiningLevel;
+  int gate;
+  int goldRockId2;
+  int goldRockId1;
+  int rockId;
+  int ironRockId1;
+  int ironRockId2;
+  int clayRockId;
   
-  int randomBankNum, tabsNum, latency, patience, reaction, scale, spamShape, interactiveShape, runningShape, walkingShape, playerMiningLevel, gate;
-  int goldRockId2, goldRockId1, rockId, ironRockId1, ironRockId2, clayRockId;
+  Area bankArea1;
+  Area bankArea2;
+  Area entireMiningArea;
+  Area goldMiningArea;
+  Area ironMiningArea;
+  Area currentBankArea;
   
-  Area bankArea1, bankArea2, entireMiningArea, goldMiningArea, ironMiningArea, currentBankArea;
+  Tile goldRockTile1, goldRockTile2;
+  Tile ironRockTile1, ironRockTile2;
   
-  Tile goldRockTile1, goldRockTile2, ironRockTile1, ironRockTile2;
-  
-  String ironOreName, goldOreName, ironMessage, goldMessage;
+  String ironOreName, goldOreName;
+  String ironMessage, goldMessage;
   
   public NewbzMultiRockMiner() {
     this.bankArea1 = new Area(3015, 3355, 3014, 3357);
@@ -60,17 +88,17 @@ public class NewbzMultiRockMiner extends AbstractScript {
   }
   
   public void onStart() {
-    this.reaction = Calculations.random(250, 750);
-    this.patience = Calculations.random(750, 1250);
+    this.reaction = Calculations.random(250, 755);
+    this.patience = Calculations.random(750, 1255);
     this.walkingShape = Calculations.random(2, 5);
     this.runningShape = Calculations.random(2, 4);
     this.interactiveShape = Calculations.random(2, 4);
     this.spamShape = 1;
     this.scale = Calculations.random(350, 650);
-    this.latency = Calculations.random(225, 275);
+    this.latency = Calculations.random(225, 277);
     this.startTime = System.currentTimeMillis();
-    this.randomSeconds = Calculations.random(8959, 13620);
-    this.randomMinutesForLogout = this.randomSeconds / 60;
+    this.randomSeconds = Calculations.random(8959, 13627);
+    this.randomMinutesForLogout = this.randomSeconds / 60L;
     this.randomMinutesLow = Calculations.random(13, 31);
     this.randomMinutesMid = Calculations.random(33, 79);
     this.randomMinutesLong = Calculations.random(83, 137);
@@ -99,12 +127,12 @@ public class NewbzMultiRockMiner extends AbstractScript {
     if (this.runTimeMinutes > this.randomMinutesForLogout)
       antiban(actionTypes.afk); 
     if (!getInventory().isFull()) {
-      if (!this.entireMiningArea.contains((Entity)getLocalPlayer()) && !this.goldMiningArea.contains((Entity)getLocalPlayer()) && 
-        !this.ironMiningArea.contains((Entity)getLocalPlayer()))
+      if (!this.entireMiningArea.contains(getLocalPlayer()) && !this.goldMiningArea.contains(getLocalPlayer()) && 
+        !this.ironMiningArea.contains(getLocalPlayer()))
         goWalkTo(this.entireMiningArea); 
       GameObject rock1 = (GameObject)getGameObjects().closest(n -> 
-          ((n.getID() == this.goldRockId1 || n.getID() == this.goldRockId2) && n.distance((Entity)getLocalPlayer()) < 8.0D));
-      GameObject rock2 = (GameObject)getGameObjects().closest(n -> ((n.getID() == this.ironRockId1 || n.getID() == this.ironRockId2) && n.distance((Entity)getLocalPlayer()) < 8.0D && this.ironMiningArea.contains((Entity)n)));
+          ((n.getID() == this.goldRockId1 || n.getID() == this.goldRockId2) && n.distance(getLocalPlayer()) < 8.0D));
+      GameObject rock2 = (GameObject)getGameObjects().closest(n -> ((n.getID() == this.ironRockId1 || n.getID() == this.ironRockId2) && n.distance(getLocalPlayer()) < 8.0D && this.ironMiningArea.contains((Entity)n)));
       miningSequence(this.playerMiningLevel, rock1, rock2);
     } 
     if (getInventory().isFull()) {
@@ -125,7 +153,7 @@ public class NewbzMultiRockMiner extends AbstractScript {
       if (this.currentBankArea.contains((Entity)getLocalPlayer())) {
         randomBreakCheck(this.runTimeMinutes);
         bank();
-      } else if (!this.currentBankArea.contains((Entity)getLocalPlayer())) {
+      } else if (!this.currentBankArea.contains(getLocalPlayer())) {
         goWalkTo(this.currentBankArea);
       } 
     } 
@@ -167,7 +195,7 @@ public class NewbzMultiRockMiner extends AbstractScript {
   }
   
   private void bank() {
-    NPC banker = (NPC)getNpcs().closest(npc -> (npc != null && npc.hasAction(new String[] { "Bank" })));
+    NPC banker = getNpcs().closest(npc -> (npc != null && npc.hasAction(new String[] { "Bank" })));
     if (banker != null && banker.interact("Bank"))
       if (sleepUntil(() -> getBank().isOpen(), Calculations.random(7500, 9000))) {
         sleep(this.latency * 3 / 2);
@@ -212,7 +240,7 @@ public class NewbzMultiRockMiner extends AbstractScript {
   }
   
   public void goWalkTo(Area area) {
-    if (!area.contains((Entity)getLocalPlayer())) {
+    if (!area.contains(getLocalPlayer())) {
       toggleRun(getLocalPlayer().isInCombat());
       if (getLocalPlayer().isInCombat()) {
         sleep(this.latency + Calculations.random(50, 150));
